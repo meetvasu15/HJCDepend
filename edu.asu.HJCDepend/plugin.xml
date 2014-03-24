@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+
+   <extension
+         point="org.eclipse.ui.views">
+      <category
+            name="Dependency Analysis"
+            id="edu.asu.HJCDepend">
+      </category>
+      <view
+            name="HJCDepend"
+            icon="icons/sample.gif"
+            category="edu.asu.HJCDepend"
+            class="edu.asu.hjcdepend.views.HJCDependView"
+            id="edu.asu.hjcdepend.views.HJCDependView">
+      </view>
+   </extension>
+   <extension
+         point="org.eclipse.ui.perspectiveExtensions">
+      <perspectiveExtension
+            targetID="org.eclipse.jdt.ui.JavaPerspective">
+         <view
+               ratio="0.5"
+               relative="org.eclipse.ui.views.ProblemView"
+               relationship="right"
+               id="edu.asu.hjcdepend.views.HJCDependView">
+         </view>
+      </perspectiveExtension>
+   </extension>
+   <extension
+         point="org.eclipse.help.contexts">
+      <contexts
+            file="contexts.xml">
+      </contexts>
+   </extension>
+   <extension
+         point="org.eclipse.ui.preferencePages">
+      <page
+            class="edu.asu.hjcdepend.preferences.HJCPreferencePage"
+            id="edu.asu.hjcdepend.preferences.HJCPreferencePage"
+            name="HJCDepend Preferences">
+      </page>
+   </extension>
+   <extension
+         point="org.eclipse.core.runtime.preferences">
+      <initializer
+            class="edu.asu.hjcdepend.preferences.PreferenceInitializer">
+      </initializer>
+   </extension>
+
+</plugin>
