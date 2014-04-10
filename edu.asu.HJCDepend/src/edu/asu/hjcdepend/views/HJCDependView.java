@@ -4,6 +4,7 @@ package edu.asu.hjcdepend.views;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.log4j.Logger;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.jface.viewers.ArrayContentProvider;
 import org.eclipse.jface.viewers.ColumnLabelProvider;
@@ -39,7 +40,7 @@ public class HJCDependView extends ViewPart {
 	 * The ID of the view as specified by the extension.
 	 */
 	public static final String ID = "edu.asu.hjcdepend.views.HJCDependView";
-
+	 static Logger log = Logger.getLogger("edu.asu.hjcdepend.views.HJCDependView"); 
 	private TableViewer viewer;
 	private static List<ResultStoreBean> allIssuesFoundList ;
 
@@ -63,13 +64,22 @@ public class HJCDependView extends ViewPart {
 			public void widgetSelected(SelectionEvent e) {
 				// Shell shell = parent.getShell();
 				initializeAnalysis(); // this method is the entry point of the
+				generateLogs();
 				updateViewerContent();// dependency analysis core 
 			}
+
+			
 		});
 		button.setLayoutData(new GridData(GridData.GRAB_HORIZONTAL));
 		createViewer(parent);
 	}
-	
+	private void generateLogs() {
+		for(ResultStoreBean oneIssue: allIssuesFoundList){
+			log.info(oneIssue.getType()+" reported of severity '"+oneIssue.getSeverity()+"'. Description: "+ oneIssue.getDescription());
+		}
+		log.info("+++++++++++++++++++++++++++++++++++++++++++Analysis End++++++++++++++++++++++++++++++");
+		
+	}
 	private void initializeAnalysis() {
 		try {
 			allIssuesFoundList = new ArrayList<ResultStoreBean>();

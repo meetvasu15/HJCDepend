@@ -1,6 +1,7 @@
 package edu.asu;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 
 public class DependencyStore {
@@ -16,7 +17,7 @@ public class DependencyStore {
 	private ArrayList<String> htmlallHtmlAccessors;
 	
 	//all the javascript functions reffered by HTML
-	private ArrayList<String> htmlEventListnerFunc;
+	private  HashMap<String, Integer> htmlEventListnerFunc;
 	
 	//all the css reffered by html using class attribute
 	private ArrayList<String> htmlAllCssDependencies;
@@ -34,7 +35,7 @@ public class DependencyStore {
 	private ArrayList<String> allCssFilesFound;
 	
 	//all functions found in all Js files
-	private ArrayList<String> jsAllFuncInJs;
+	private HashMap<String, Integer> jsAllFuncInJs;
 	
 	//all html ids reffered by Javascript
 	private ArrayList<String> jsAllHtmlIdRead;
@@ -42,6 +43,10 @@ public class DependencyStore {
 	//all html ids accessed by Javascript
 	private ArrayList<String> jsAllHtmlIdWritten;
 	
+	//all css class selectors found in the css files
+	private ArrayList<String> cssAllCssSelectors;
+	//all css classes possibily written by JS
+	private ArrayList<String> jsAllCssRef;
 
 	
 	/*
@@ -49,23 +54,26 @@ public class DependencyStore {
 	 * we need every variable initialized to generate report
 	 */
 	public DependencyStore(){
-		htmlEventListnerFunc = new ArrayList<String>();
+		htmlallHtmlAccessors = new ArrayList<String>();
+		htmlEventListnerFunc = new HashMap<String, Integer>();
 		htmlAllCssDependencies = new ArrayList<String>();
 		htmlAllJsExtLinks = new ArrayList<String>();
 		htmlAllCssExtLinks = new ArrayList<String>();
 		allJsFilesFound = new ArrayList<String>();
 		allCssFilesFound = new ArrayList<String>();
-		jsAllFuncInJs = new ArrayList<String>();
+		setJsAllFuncInJs(new HashMap<String, Integer>());
 		jsAllHtmlIdRead = new ArrayList<String>();
 		jsAllHtmlIdWritten = new ArrayList<String>();
+		cssAllCssSelectors= new ArrayList<String>();
+		jsAllCssRef = new ArrayList<String>();
 		
 	}
 	
-	public ArrayList<String> getHtmlEventListnerFunc() {
+	public HashMap<String, Integer> getHtmlEventListnerFunc() {
 		return htmlEventListnerFunc;
 	}
 
-	public void setHtmlEventListnerFunc(ArrayList<String> htmlEventListnerFunc) {
+	public void setHtmlEventListnerFunc(HashMap<String, Integer> htmlEventListnerFunc) {
 		this.htmlEventListnerFunc = htmlEventListnerFunc;
 	}
 
@@ -109,13 +117,6 @@ public class DependencyStore {
 		this.allCssFilesFound = allCssFilesFound;
 	}
 
-	public ArrayList<String> getJsAllFuncInJs() {
-		return jsAllFuncInJs;
-	}
-
-	public void setJsAllFuncInJs(ArrayList<String> jsAllFuncInJs) {
-		this.jsAllFuncInJs = jsAllFuncInJs;
-	}
 
 	public ArrayList<String> getJsAllHtmlIdRead() {
 		return jsAllHtmlIdRead;
@@ -139,6 +140,30 @@ public class DependencyStore {
 
 	public void setHtmlallHtmlAccessors(ArrayList<String> htmlallHtmlAccessors) {
 		this.htmlallHtmlAccessors = htmlallHtmlAccessors;
+	}
+
+	public HashMap<String, Integer> getJsAllFuncInJs() {
+		return jsAllFuncInJs;
+	}
+
+	public void setJsAllFuncInJs(HashMap<String, Integer> jsAllFuncInJs) {
+		this.jsAllFuncInJs = jsAllFuncInJs;
+	}
+
+	public ArrayList<String> getCssAllCssSelectors() {
+		return cssAllCssSelectors;
+	}
+
+	public void setCssAllCssSelectors(ArrayList<String> cssAllCssSelectors) {
+		this.cssAllCssSelectors = cssAllCssSelectors;
+	}
+
+	public ArrayList<String> getJsAllCssRef() {
+		return jsAllCssRef;
+	}
+
+	public void setJsAllCssRef(ArrayList<String> jsAllCssRef) {
+		this.jsAllCssRef = jsAllCssRef;
 	}
 	
 }

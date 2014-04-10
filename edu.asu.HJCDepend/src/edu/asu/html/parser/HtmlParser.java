@@ -48,7 +48,11 @@ public class HtmlParser {
 			}
 		}
 	}
-
+	public Integer searchEvents(String functionName){
+		Integer retVal = 0;
+		//	this.doc.getElementsByAttributeValueContaining(key, match)
+		return retVal;
+	}
 	public Document getDocumentObject() {
 		return this.doc;
 	}

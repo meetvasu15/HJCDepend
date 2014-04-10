@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.StringTokenizer;
 
 import org.apache.log4j.Logger;
 import org.jsoup.nodes.Attribute;
@@ -12,28 +13,36 @@ import org.jsoup.nodes.Attributes;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
- 
+
 import edu.asu.css.CssParser;
+import edu.asu.css.VisitUrl;
 import edu.asu.hjcdepend.ResultStoreBean;
 import edu.asu.html.HtmlUtil;
 import edu.asu.html.parser.HtmlParser;
 import edu.asu.javascript.parser.JavascriptParser;
+import edu.asu.uploadData.PushToServer;
 public class Executor {
 
-	 static Logger log = Logger.getLogger("edu.asu.Executor"); 
+	// static Logger log = Logger.getLogger("edu.asu.Executor"); 
 	private String htmlFilepath; 
 	private String projectDirPath;
 	private static DependencyStore dependencyStore;
 	private List<ResultStoreBean> foundIssuesList;
+	private FileNameLineTrack fileNameLineTrack;
+	private List<Dependency> dependencyList;
+	private String userID;
 	
 	public Executor(){
 		foundIssuesList = new ArrayList<ResultStoreBean>();
 		dependencyStore = new DependencyStore();
+		dependencyList = new ArrayList<Dependency>();
+		fileNameLineTrack = new FileNameLineTrack();
 	}
 	public List<ResultStoreBean> runDependencyAnalyser(String[] prjctNhtmlPath) { 
 		if(prjctNhtmlPath.length <2){
 			return null;
 		}
+		userID = "";
 		foundIssuesList.clear();
 		HtmlParser htmlParser ;
 		
@@ -42,18 +51,21 @@ public class Executor {
 		if(!Util.isBlankString(this.projectDirPath) || !Util.isBlankString(this.htmlFilepath) ){
 			try{
 					htmlParser = new HtmlParser(this.htmlFilepath, false); // parse the html doc 
-				log.info("Running dependency analysis for "+this.htmlFilepath); 
+				//log.info("Running dependency analysis for "+this.htmlFilepath); 
 				Elements allElts = HtmlUtil.getAllHtmlElements(htmlParser.getDocumentObject());		//gets all the HTML Elements
+				
 				getDOMEvents(allElts);		//Gets all event Listeners on HTML Doc and stores in dependency store
+				
 				//Gets all js and css external dependencies links on the HTML document
 				//stores the absolute path in the dependency store
 				//logs error if it doesnot find a mentioned js or css file on disk
-				getExternalLinkDependencies(htmlParser.getDocumentObject()); 
+				getExternalLinkDependencies(htmlParser.getDocumentObject());  
 				
 				String jsString = fetchFileFromDisk(dependencyStore.getHtmlAllJsExtLinks(), Constants.HTML_TO_JAVASCRIPT);//returns the content of all the js files
+				
 				String cssString = fetchFileFromDisk(dependencyStore.getHtmlAllCssExtLinks(), Constants.HTML_TO_CSS);//returns the content of all the css files
-				System.out.println(cssString);
-				CssParser.readCSS30(cssString);
+
+				CssParser.readCSS30(cssString,dependencyStore);
 				buildDOMDependencies(allElts); // gets all css dependencies and stores in dependencyStore, 
 											   // also get all possible references a javascript could make
 											   // store it in dependencyStore.allHTMLAccessors
@@ -61,16 +73,22 @@ public class Executor {
 				parseJavascript(jsString);// entry point for js parsing
 	
 				VerifyDependency vd = new VerifyDependency(dependencyStore, this.foundIssuesList, this.htmlFilepath);
+				
 				vd.initializeVerification();
 			}catch(Exception e){
-				e.getMessage();
+				System.out.println(e.getMessage());
 			}
 		}else{
 			foundIssuesList.add(new ResultStoreBean(Constants.ERROR, Constants.HJC_ERROR, Constants.CURRENT_FILE_NOT_HTML
 					,null,null));
-			log.error("FATAL HJC ERROR: No html file/ text found or could not acquire project context path.");
+			//log.error("FATAL HJC ERROR: No html file/ text found or could not acquire project context path.");
 			return null;
 		}
+		//send log to server....
+		
+//		PushToServer ps = new PushToServer("http://localhost:8080/collector/uploadData", userID);
+//		ps.sendFile();
+		//log.info("hello");
 		return foundIssuesList;
 	}
 
@@ -86,15 +104,29 @@ public class Executor {
 		 HashMap<String, String> retMap = new HashMap<String, String>();
 		ArrayList<String> allDomEventList= HtmlUtil.getAllHtmlListeners();
 		Attributes attrs;
-		log.info("Listing all HTML --> Javascript dependencies:-\n");
+		//log.info("Listing all HTML --> Javascript dependencies:-\n");
 		for(Element oneElt: allElts){
 			attrs = oneElt.attributes();
 			for (Attribute oneAttr: attrs){
 				if(allDomEventList.contains(oneAttr.getKey().trim())){
+					int paramCount = 0; // this holds the total arguments passed in the function
 					retMap.put(oneAttr.getKey(), oneAttr.getValue());
-					
-					log.info("Listener Type: "+oneAttr.getKey()+", dependent JS: "+oneAttr.getValue());
-					dependencyStore.getHtmlEventListnerFunc().add(oneAttr.getValue());
+					String functionStr = oneAttr.getValue();
+					//This is a loose way of identifying whether the string inside the event listner
+					//is a call to the function or it is embedded javascript
+					if(functionStr.contains("(") && functionStr.contains(")")){
+						String paramsStr = functionStr.subSequence(functionStr.indexOf("(")+1, functionStr.indexOf(")")).toString();
+						if(!Util.isBlankString(paramsStr)){
+							StringTokenizer st = new StringTokenizer(paramsStr,",");
+							paramCount = st.countTokens();
+						}
+					}
+					// its possibily not a function call, it may be embedded javascript, ignoring this
+					else{
+						continue;
+					}
+					//log.info("Listener Type: "+oneAttr.getKey()+", dependent JS: "+oneAttr.getValue());
+					dependencyStore.getHtmlEventListnerFunc().put(oneAttr.getValue(), paramCount);
 					
 				}
 			}
@@ -111,13 +143,13 @@ public class Executor {
 		 ArrayList<String> allDomCssDepList= HtmlUtil.getAllHtmlCssSelectorList();
 		 ArrayList<String> allDomPossibleAccessorList= HtmlUtil.getAllHtmlSelectorList();
 		Attributes attrs;
-		log.info("Listing all HTML --> Css3 dependencies:-\n");
+		//log.info("Listing all HTML --> Css3 dependencies:-\n");
 		for(Element oneElt: allElts){
 			attrs = oneElt.attributes();
 			for (Attribute oneAttr: attrs){
 				if(allDomCssDepList.contains(oneAttr.getKey().trim())){
 					retMap.put(oneAttr.getKey(), oneAttr.getValue());
-					log.info("Attr Type: "+oneAttr.getKey()+", dependent CSS class: "+oneAttr.getValue());
+					//log.info("Attr Type: "+oneAttr.getKey()+", dependent CSS class: "+oneAttr.getValue());
 					dependencyStore.getHtmlAllCssDependencies().add(oneAttr.getValue());
 				}
 				if(allDomPossibleAccessorList.contains(oneAttr.getKey().trim())){
@@ -136,7 +168,7 @@ public class Executor {
 	public HashMap<String, String> getExternalLinkDependencies(Document doc){
 		HashMap<String, String> retMap = new HashMap<String, String>();
 		// get all JS links
-		log.info("Listing all HTML --> JS ext dpendencies:-\n");
+		//log.info("Listing all HTML --> JS ext dpendencies:-\n");
 		Elements allElts = doc.select("script");
 		Attributes attrs;
 		for(Element oneElt: allElts){
@@ -163,7 +195,7 @@ public class Executor {
 		
 		//TO-DO: implement new logic for extracting css external links
 		// get all CSS links
-		log.info("Listing all HTML --> CSS ext dpendencies:-\n");
+		//log.info("Listing all HTML --> CSS ext dpendencies:-\n");
 		Elements allCSSElts = doc.select("link");
 		Attributes CSSAttrs;
 		for(Element oneElt: allCSSElts){
@@ -194,7 +226,7 @@ public class Executor {
 	 */
 	public void parseJavascript(String jsString){
 		JavascriptParser jp = new JavascriptParser(dependencyStore,foundIssuesList);
-		jp.parser(jsString);
+		jp.parser(jsString, fileNameLineTrack );
 	}
 	/*
 	 * This method fetches javascript files from URL and returns them as a string  
@@ -225,12 +257,17 @@ public class Executor {
 	 * This method takes in a list of all js ext links found on the HTML file and return one string of the js files content
 	 */
 	public String fetchFileFromDisk(ArrayList<String> diskPathList, String dependencyType){
-		StringBuilder allJavascriptContent= new StringBuilder();
+		StringBuilder allJavascriptContent= new StringBuilder(); 
+		Integer lineCount = 0;
 		for(String onePath:diskPathList){
 			try{
-				String readContnt = readFileFromDisk(onePath);
+				String[] readContentLineNumberArr =  readFileFromDisk(onePath, lineCount);
+				String readContnt = readContentLineNumberArr[0];
+				lineCount = Integer.parseInt(readContentLineNumberArr[1]);
+				fileNameLineTrack.getJsEndLineNumberMap().put(onePath, lineCount);
 				if(!Util.isBlankString(readContnt)){
 					allJavascriptContent.append(readContnt);
+					
 				}else{
 					foundIssuesList.add(new ResultStoreBean(Constants.WARNING, dependencyType, Constants.EMPTY_FILE
 							+onePath, this.htmlFilepath,null));
@@ -249,15 +286,16 @@ public class Executor {
 	 * This method reads a file from absolute system path fed to it
 	 * @returns a string of the file
 	 */
-	public String readFileFromDisk(String absolutePath) throws IOException {
+	public String[] readFileFromDisk(String absolutePath, Integer lineCount) throws IOException {
 		StringBuilder lineRead = new StringBuilder();
 		String currentLine;
-		BufferedReader br = null;
+		BufferedReader br = null; 
 		try {
 			br = new BufferedReader(new FileReader(absolutePath));
 
 			while ((currentLine = br.readLine()) != null) {
 				lineRead.append(currentLine+"\n");
+				lineCount+=1;
 			}
 		} catch (IOException io) {
 			io.printStackTrace();
@@ -272,7 +310,10 @@ public class Executor {
 				//ex.printStackTrace();
 			}
 		}
-		return lineRead.toString();
+		String [] retArr = new String[2];
+		retArr[0]= lineRead.toString();
+		retArr[1] = lineCount.toString();
+		return retArr;
 	}
 	/*
 	 *  Possible path start to handle

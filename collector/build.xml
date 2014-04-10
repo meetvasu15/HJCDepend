@@ -1,0 +1,76 @@
+<!--
+Author: Vasu Gupta 10/28/12
+-->
+<project name="collector" default="targets" basedir=".">
+   
+  <!-- set global properties for this build -->
+  <property name="tomcat.home" value="H:/apache-tomcat-7.0.52"/>
+  <property name="src" value="./src" />
+  <property name="lib" location="./lib" /> 
+  <property name="build" value="./build" />
+  <property name="classes" value="./classes" />
+  <property name="appname" value="collector" />
+  <property name="war" value="${appname}.war" />
+
+   <path id="compile.classpath">
+     <pathelement location="${classes}"/>
+     <fileset dir="${lib}">
+         <include name="*.jar"/>
+         <include name="**/*.jar"/>
+     </fileset>
+     <fileset dir="${tomcat.home}/lib">
+         <include name="*.jar"/>
+      </fileset>
+   </path>
+
+   <target name="targets">
+      <echo message="targets are clean, prepare, compile, war, and deploy"/>
+   </target>
+
+   <target name="prepare">
+      <!-- Create the time stamp -->
+      <tstamp/>
+      <mkdir dir="${classes}"/>
+      <mkdir dir="${build}"/>
+   </target>
+   
+   <target name="compile" depends="prepare"
+           description="Compile Java sources">
+      <javac debug="true"
+			  debuglevel="lines,vars,source"
+			  includeAntRuntime="false"
+			  srcdir="${src}"
+			  destdir="${classes}">
+         <classpath refid="compile.classpath"/>
+      </javac>
+   </target>
+
+   <target name="clean">
+	<delete file="${war}"/>
+	<delete dir="${build}"/>
+	<delete dir="${classes}"/>
+   </target>
+
+   <target name="build" depends="compile">
+	  <copy todir="${build}/WEB-INF/classes" overwrite="yes">
+    	<fileset dir="${classes}"/>
+      </copy>
+      <copy todir="${build}/WEB-INF" file="web.xml" overwrite="yes"/>
+      
+      <copy todir="${build}/WEB-INF/lib">
+      	<fileset dir="${lib}" includes="*.jar"/>
+      </copy>
+   </target>
+   
+   <target name="war" depends="build">
+      <jar destfile="${war}" basedir="${build}" />
+   </target>
+
+   <target name="deploy" depends="war">
+     <echo message="TOMCAT_HOME is set to ${tomcat.home}" />
+			<!-- Copy to Tomcat WebApps directory -->
+      <copy file="${war}" todir="${tomcat.home}/webapps" overwrite="yes" />
+      <echo message="" />
+      <echo message="Deployment complete"/>
+    </target>
+</project>

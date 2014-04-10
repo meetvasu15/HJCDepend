@@ -20,4 +20,5 @@ public class Constants {
 	public static final String HTML_TO_CSS = "HTML to External CSS";
 	public static final String DOCUMENT_OBJECT = "document";
 	public static final String ERROR_DURING_PARSING_JS = "Your Javascript contains error, could not parse file. ";
+	public static final String FUNC_ADD_CLASS = "addClass";
 }

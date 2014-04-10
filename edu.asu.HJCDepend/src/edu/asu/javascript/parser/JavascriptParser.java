@@ -3,11 +3,7 @@ package edu.asu.javascript.parser;
 import java.util.Iterator;
 import java.util.List;
 
-import javax.swing.text.html.HTMLDocument.HTMLReader.IsindexAction;
-import javax.xml.crypto.Data;
-
 import org.mozilla.javascript.EvaluatorException;
-import org.mozilla.javascript.Node;
 import org.mozilla.javascript.Parser;
 import org.mozilla.javascript.Token;
 import org.mozilla.javascript.ast.Assignment;
@@ -23,6 +19,7 @@ import org.mozilla.javascript.ast.VariableInitializer;
 
 import edu.asu.Constants;
 import edu.asu.DependencyStore;
+import edu.asu.FileNameLineTrack;
 import edu.asu.Util;
 import edu.asu.hjcdepend.ResultStoreBean;
 import edu.asu.javascript.JsDoc;
@@ -32,6 +29,7 @@ public class JavascriptParser {
 	public JsDoc jsDocObj;
 	private DependencyStore dependencyStore;
 	private List<ResultStoreBean> foundIssuesList;
+	private FileNameLineTrack fileNameLineTrack;
 
 	public JavascriptParser(DependencyStore dependencyStore, List<ResultStoreBean> foundIssuesList) {
 		this.jsDocObj = new JsDoc();
@@ -39,8 +37,8 @@ public class JavascriptParser {
 		this.foundIssuesList = foundIssuesList;
 	}
 
-	public void parser(String jsString) throws EvaluatorException {
-		
+	public void parser(String jsString, FileNameLineTrack fileNameLineTrack) throws EvaluatorException {
+		this.fileNameLineTrack = fileNameLineTrack;
 		NodeVisitor nodeVisitor = new NodeVisitor() {
 			public boolean visit(AstNode node) {
 				int type = node.getType();
@@ -70,7 +68,8 @@ public class JavascriptParser {
 			AstNode nextNode = iter.next();
 		if(nextNode != null && nextNode instanceof FunctionNode){
 			FunctionNode fNode = (FunctionNode) nextNode; 
-				dependencyStore.getJsAllFuncInJs().add( fNode.getName().trim());
+				//System.out.println(fNode.getParamCount());
+				dependencyStore.getJsAllFuncInJs().put( fNode.getName().trim(), (Integer)fNode.getParamCount());
 			}
 		} 
 		
@@ -112,13 +111,12 @@ public class JavascriptParser {
 					&& jsDocObj.getUnavailableDomReferences().containsKey(
 							assignmentObject)) {
 
-				foundIssuesList.add(new ResultStoreBean(Constants.ERROR,
-						Constants.JAVASCRIPT_TO_HTML,
-						"Javascript tried to write to an "
-								+ "invalid HTML reference "
+				foundIssuesList.add(new ResultStoreBean(Constants.ERROR, Constants.JAVASCRIPT_TO_HTML,
+						"Javascript tried to write to an  invalid HTML ID "
 								+ jsDocObj.getUnavailableDomReferences().get(
-										assignmentObject), "", property
-								.getLineno() + ""));// report it!!
+										assignmentObject), 
+										 this.fileNameLineTrack.calculateJsTrueFileName(assignExpr.getLineno())
+											,  this.fileNameLineTrack.calculateJsTrueLineNum(assignExpr.getLineno())+""));// report it!!
 			}
 
 			// check if the identifier exists in our identifier lists of DOM
@@ -165,9 +163,10 @@ public class JavascriptParser {
 			PropertyGet property = (PropertyGet) functionExp.getTarget();
 
 			// check if the call is made on the document object
-			if (property.getLeft() != null
+			if (property.getLeft() != null && property.getLeft() instanceof Name 
 					&& Util.compareString(property.getLeft().getString(),Constants.DOCUMENT_OBJECT)) {
-
+				
+				
 				// what function is called on the document object
 				for (String attribute : Util.getDOMSelectors()) {
 					
@@ -186,12 +185,18 @@ public class JavascriptParser {
 								//check whether there is a html identifier in dom or else report it as warning.
 								if(Util.isBlankList(dependencyStore.getHtmlallHtmlAccessors()) || !dependencyStore.getHtmlallHtmlAccessors().contains( strArg.getValue())){
 									foundIssuesList.add(new ResultStoreBean(Constants.WARNING, Constants.JAVASCRIPT_TO_HTML, "Javascript tried to access " +
-											"invalid HTML reference "+  strArg.getValue(), "", node.getLineno()+""));//report it!!
+											"invalid HTML reference "+  strArg.getValue(), this.fileNameLineTrack.calculateJsTrueFileName(node.getLineno())
+											,  this.fileNameLineTrack.calculateJsTrueLineNum(node.getLineno())+""));//report it!!
 									if(getVarInitializer(functionExp.getParent()) != null){
-										//check if the HTML reference is present in HTML document
 										
 										jsDocObj.getUnavailableDomReferences().put(getVarInitializer(functionExp.getParent()), strArg.getValue());
 									}
+									//check if it is trying to write to a non existing property
+									 if(isAccessingProperty(node.getParent())){
+										 foundIssuesList.add(new ResultStoreBean(Constants.ERROR, Constants.JAVASCRIPT_TO_HTML, "Javascript tried to access " +
+													"invalid HTML element "+  strArg.getValue(), this.fileNameLineTrack.calculateJsTrueFileName(node.getLineno())
+													,  this.fileNameLineTrack.calculateJsTrueLineNum(node.getLineno())+""));//report it!!
+									 }
 								}
 								//put the var identifier and value in the map eg.
 								//var answer = document.getElementById("element");
@@ -216,8 +221,13 @@ public class JavascriptParser {
 
 				}
 			}
+			//check for if a addclass operation is being done?
+			//if yes add this class name to JSimplicit css
+			else if(property.getLeft() != null && property.getLeft() instanceof FunctionCall ){
+				checkAddClassFuncCall(property, functionExp);
+			}
 			//check whether it is a identifier we already know of and is being tried to accessed on its properties.
-			else if(property.getLeft() != null){
+			else if(property.getLeft() != null && property.getLeft() instanceof Name){
 				//check identifier in existing list
 				if(jsDocObj.getVariableIdentifier().containsKey(property.getLeft().getString())){
 					jsDocObj.setDomEltWrittenToMap(jsDocObj.getVariableIdentifier().get(property.getLeft().getString()), property.getLineno());
@@ -226,7 +236,8 @@ public class JavascriptParser {
 				//check if the identifier belongs to unavaible DOM references
 				if(jsDocObj.getUnavailableDomReferences().containsKey(property.getLeft().getString())){
 					foundIssuesList.add(new ResultStoreBean(Constants.ERROR, Constants.JAVASCRIPT_TO_HTML, "Javascript tried to write " +
-							"invalid HTML reference "+  property.getLeft().getString(), "", node.getLineno()+""));//report it!!
+							"invalid HTML reference "+  property.getLeft().getString(), this.fileNameLineTrack.calculateJsTrueFileName(node.getLineno())
+							,  this.fileNameLineTrack.calculateJsTrueLineNum(node.getLineno())+""));//report it!!
 				}
 			}
 
@@ -234,6 +245,54 @@ public class JavascriptParser {
 		return false;
 	}
 	
+	private void checkAddClassFuncCall(PropertyGet property, FunctionCall functionExp) {
+		
+		FunctionCall funcCall = (FunctionCall) property.getLeft();
+		if (funcCall.getTarget() != null
+				&& funcCall.getTarget() instanceof PropertyGet) {
+			
+			PropertyGet propLeft = (PropertyGet) funcCall.getTarget();
+
+			// check if the call is made on the document object
+			if (propLeft.getLeft() != null
+					&& propLeft.getLeft() instanceof Name
+					&& Util.compareString(propLeft.getLeft().getString(),
+							Constants.DOCUMENT_OBJECT)) {
+				
+				if (property.getRight() != null
+						&& property.getRight() instanceof Name
+						&& Util.compareString(property.getRight().getString(),
+								Constants.FUNC_ADD_CLASS)) {
+					
+					List allargs = functionExp.getArguments();
+					
+					for (Iterator iter = allargs.iterator(); iter.hasNext();) {
+						Object currArg = iter.next();
+
+						if (currArg instanceof StringLiteral) {
+							StringLiteral strArg = (StringLiteral) currArg;
+							dependencyStore.getJsAllCssRef().add(strArg.getValue());
+							//System.out.println(strArg.getValue());
+						}
+
+					}
+				}
+			}
+		}
+
+	}
+
+	private boolean isAccessingProperty(AstNode node) {
+		if(node instanceof  PropertyGet){
+			PropertyGet prop = (PropertyGet)node;
+			if(prop.getRight() != null){
+				return true;
+			}
+			
+		}
+		return false;
+	}
+
 	// this method returns the reference string of a variable initializer node
 	public String getVarInitializer(AstNode node){
 		if(node != null && node instanceof VariableInitializer){
