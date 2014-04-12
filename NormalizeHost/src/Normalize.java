@@ -67,16 +67,16 @@ public class Normalize {
 				String[] values = line.split(cvsSplitBy);
 				if(values != null){
 					int total=0;
-					System.out.print(values[1]+", ");
+					//System.out.print(values[1]+", ");
 					for(int i = 0; i<values.length; i++){
 						if(toReadCols.contains(i)){
 							newEntryArr.add(convertKnowledge(values[i]));
 							total += convertKnowledge(values[i]);
-							System.out.print(convertKnowledge(values[i])+", ");
+							//System.out.print(convertKnowledge(values[i])+", ");
 						}
 					}
 					allEntriesValues.put(values[1], newEntryArr);
-					System.out.println(total);
+					//System.out.println(total);
 					allEntriesTotal.put(values[1], total);
 				}
 
@@ -84,12 +84,17 @@ public class Normalize {
 			
 			//sort the map
 			sorted = sortByValues(allEntriesTotal);
+			for (Map.Entry<String, Integer> entry : sorted.entrySet())
+			{
+			    System.out.println(entry.getKey() + " / " + entry.getValue());
+			}
 			String [] sortedUID = new String[sorted.keySet().size()];
 			int count = 0;
 			for(String oneKey: sorted.keySet()){
 				sortedUID[count] = oneKey;
 				count+=1;
 			}
+			
 			ArrayList<String> GroupA = new ArrayList<String>();
 			ArrayList<String> GroupB = new ArrayList<String>();
 			
@@ -106,7 +111,7 @@ public class Normalize {
 			}
 			if(sortedUID.length%2 != 0){
 				//System.out.println(sortedUID.length/2+1);
-				GroupB.add(sortedUID[sortedUID.length/2]);
+				GroupA.add(sortedUID[sortedUID.length/2]);
 			}
 			ret.append("\nGroupA\n");
 			for(String one: GroupA){

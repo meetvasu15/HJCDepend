@@ -50,19 +50,23 @@ public class VerifyDependency {
 	private void checkAllHtmlEventListnerFunc (){
 		 ArrayList<String> htmlEventListnerFuncList =new ArrayList<String> (dependencyStore.getHtmlEventListnerFunc().keySet()); 
 		 ArrayList<String> allFuncInJs= new ArrayList<String> (dependencyStore.getJsAllFuncInJs().keySet()); 
+		 
 		if(!Util.isBlankList(htmlEventListnerFuncList)){
 			for(String oneFunction: htmlEventListnerFuncList){
-				//oneFunction = (oneFunction.substring(0, oneFunction.indexOf("("))).trim();
-				if(!allFuncInJs.contains((oneFunction.substring(0, oneFunction.indexOf("("))).trim())){
-					foundIssuesList.add(new ResultStoreBean(Constants.ERROR, Constants.HTML_TO_JAVASCRIPT, "Could not find " +
-							(oneFunction.substring(0, oneFunction.indexOf("("))).trim()+" event listner in JavaScript"
-							, this.htmlFilepath,null));
-				}else if(allFuncInJs.contains((oneFunction.substring(0, oneFunction.indexOf("("))).trim())){
-					//check function variadicity (Number of function params)
-					if(dependencyStore.getHtmlEventListnerFunc().get(oneFunction) != null && dependencyStore.getHtmlEventListnerFunc().get(oneFunction) != dependencyStore.getJsAllFuncInJs().get((oneFunction.substring(0, oneFunction.indexOf("("))).trim())){
-						foundIssuesList.add(new ResultStoreBean(Constants.WARNING, Constants.HTML_TO_JAVASCRIPT, "In your HTML file, the argument count in event listner function '" +
-								oneFunction+"' does not match parameter count in the JavaScript file"
+				//check if this function is a browser built in
+				 if(!getBrowserBuiltInFuncs().contains((oneFunction.substring(0, oneFunction.indexOf("("))).trim())){
+					 //Now check if the function is in JS Files or not
+					if(!allFuncInJs.contains((oneFunction.substring(0, oneFunction.indexOf("("))).trim())){
+						foundIssuesList.add(new ResultStoreBean(Constants.ERROR, Constants.HTML_TO_JAVASCRIPT, "Could not find " +
+								(oneFunction.substring(0, oneFunction.indexOf("("))).trim()+" event listner in JavaScript"
 								, this.htmlFilepath,null));
+					}else if(allFuncInJs.contains((oneFunction.substring(0, oneFunction.indexOf("("))).trim())){
+						//check function variadicity (Number of function params)
+						if(dependencyStore.getHtmlEventListnerFunc().get(oneFunction) != null && dependencyStore.getHtmlEventListnerFunc().get(oneFunction) != dependencyStore.getJsAllFuncInJs().get((oneFunction.substring(0, oneFunction.indexOf("("))).trim())){
+							foundIssuesList.add(new ResultStoreBean(Constants.WARNING, Constants.HTML_TO_JAVASCRIPT, "In your HTML file, the argument count in event listner function '" +
+									oneFunction+"' does not match parameter count in the JavaScript file"
+									, this.htmlFilepath,null));
+						}
 					}
 				}
 			}
@@ -82,5 +86,47 @@ public class VerifyDependency {
 						, null,null));
 			}
 		}
+	}
+	
+	public static ArrayList<String> getBrowserBuiltInFuncs(){
+		ArrayList<String> retList = new ArrayList<String>();
+		retList.add("alert");
+		retList.add("decodeURI");
+		retList.add("decodeURIComponent");
+		retList.add("encodeURI");
+		retList.add("encodeURIComponent");
+		retList.add("escape");
+		retList.add("eval");
+		retList.add("isFinite");
+		retList.add("isNaN");
+		retList.add("Number");
+		retList.add("parseFloat");
+		retList.add("parseInt");
+		retList.add("String");
+		retList.add("unescape");
+		retList.add("atob");
+		retList.add("blur");
+		retList.add("btoa");
+		retList.add("clearInterval");
+		retList.add("clearTimeout");
+		retList.add("close");
+		retList.add("confirm");
+		retList.add("createPopup");
+		retList.add("focus");
+		retList.add("moveBy");
+		retList.add("moveTo");
+		retList.add("open");
+		retList.add("print");
+		retList.add("prompt");
+		retList.add("resizeBy");
+		retList.add("resizeTo");
+		retList.add("scroll");
+		retList.add("scrollBy");
+		retList.add("scrollTo");
+		retList.add("setInterval");
+		retList.add("setTimeout");
+		retList.add("stop");
+
+		return retList;
 	}
 }

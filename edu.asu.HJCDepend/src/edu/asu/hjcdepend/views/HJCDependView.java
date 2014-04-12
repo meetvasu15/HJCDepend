@@ -2,10 +2,13 @@ package edu.asu.hjcdepend.views;
 
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import org.apache.log4j.Logger;
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IMarker;
+import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.jface.viewers.ArrayContentProvider;
 import org.eclipse.jface.viewers.ColumnLabelProvider;
 import org.eclipse.jface.viewers.TableViewer;
@@ -17,14 +20,19 @@ import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
+import org.eclipse.swt.widgets.TableItem;
+import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.IWorkbenchPart;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.part.ViewPart;
 
 import edu.asu.Constants;
 import edu.asu.Executor;
+import edu.asu.Util;
 import edu.asu.hjcdepend.ResultStoreBean;
 import edu.asu.hjcdepend.CustomException.IllegalFileException;
 
@@ -55,10 +63,11 @@ public class HJCDependView extends ViewPart {
 	 * to create the viewer and initialize it.
 	 */
 	public void createPartControl(Composite parent) {
-		GridLayout outerLayout = new GridLayout();
+		GridLayout outerLayout = new GridLayout(2,false);
 		parent.setLayout(outerLayout);
+		//Run button
 		Button button = new Button(parent, SWT.PUSH);
-		button.setText("Run");
+		button.setText("Run HJC Depend");
 		button.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent e) {
@@ -70,7 +79,22 @@ public class HJCDependView extends ViewPart {
 
 			
 		});
-		button.setLayoutData(new GridData(GridData.GRAB_HORIZONTAL));
+		button.setLayoutData(new GridData());
+		//Clear button
+		Button buttonClr = new Button(parent, SWT.PUSH);
+		buttonClr.setText("Clear");
+		buttonClr.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent e) { 
+				//clearReportedBugs(); // this method is the entry point of the
+				viewer.getTable().removeAll();
+			}
+
+			
+
+			
+		});
+		 buttonClr.setLayoutData(new GridData());
 		createViewer(parent);
 	}
 	private void generateLogs() {
@@ -80,6 +104,14 @@ public class HJCDependView extends ViewPart {
 		log.info("+++++++++++++++++++++++++++++++++++++++++++Analysis End++++++++++++++++++++++++++++++");
 		
 	}
+	
+/*	private void clearReportedBugs() {
+		// TODO Auto-generated method stub
+		allIssuesFoundList = new ArrayList<ResultStoreBean>();
+		
+		
+	}*/
+	
 	private void initializeAnalysis() {
 		try {
 			allIssuesFoundList = new ArrayList<ResultStoreBean>();
@@ -136,6 +168,7 @@ public class HJCDependView extends ViewPart {
 				| SWT.V_SCROLL | SWT.FULL_SELECTION | SWT.BORDER);
 		createColumns(parent, viewer);
 		final Table table = viewer.getTable();
+		attachDoubleClickListener(table);
 		table.setHeaderVisible(true);
 		table.setLinesVisible(true);
 
@@ -158,7 +191,74 @@ public class HJCDependView extends ViewPart {
 		gridData.horizontalAlignment = GridData.FILL;
 		viewer.getControl().setLayoutData(gridData);
 	}
+	private void attachDoubleClickListener(final Table table){
+		table.addListener(SWT.MouseDoubleClick, new Listener() {
 
+			@Override
+			public void handleEvent(Event event) { 
+				TableItem[] selection = table.getSelection();
+
+				if (selection.length != 1) {
+					return;
+				}
+
+				TableItem item = table.getSelection()[0];
+
+				for (int i = 0; i < table.getColumnCount(); i++) {
+					if(item != null){
+						Object rowClickedData = item.getData();
+						if(rowClickedData != null && rowClickedData instanceof ResultStoreBean){
+							ResultStoreBean clickedResult = (ResultStoreBean) rowClickedData;
+							if(clickedResult != null && clickedResult.getFileName() != null && !Util.isBlankString(clickedResult.getFileName()) &&
+									clickedResult.getLineNo() != null && Util.isInteger(clickedResult.getLineNo())){
+								System.out.println("Filename" +clickedResult.getFileName()+" line No"+clickedResult.getLineNo() );
+							}
+						}
+					}
+					System.out.println(item);
+				}
+			}
+
+			
+
+		});
+	}
+	public void goToLine(String FilePath, int lineNumber){
+	/*	File fileToOpen = new File("externalfile.xml");
+		 
+		if (fileToOpen.exists() && fileToOpen.isFile()) {
+		    IFileStore fileStore = EFS.getLocalFileSystem().getStore(fileToOpen.toURI());
+		    IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+		 
+		    try {
+		        IDE.openEditorOnFileStore( page, fileStore );
+		    } catch ( PartInitException e ) {
+		        //Put your exception handler here if you wish to
+		    }
+		} else {
+		    //Do something if the file does not exist
+		}
+		*/
+		
+		///http://www.eclipsezone.com/eclipse/forums/m92221730.html
+		//http://wiki.eclipse.org/FAQ_How_do_I_open_an_editor_on_a_file_in_the_workspace%3F
+		//https://www.google.com/search?q=eclipse+open+file+in+editor+programmatically&oq=open+file+in+editor+eclipse+program&aqs=chrome.1.69i57j0.10561j0j1&sourceid=chrome&ie=UTF-8
+		//http://wiki.eclipse.org/FAQ_How_do_I_open_an_editor_on_a_file_in_the_workspace%3F
+		//http://wiki.eclipse.org/FAQ_How_do_I_open_an_editor_programmatically%3F
+		/*ResourcesPlugin.getWorkspace().getRoot().findFilesForLocationURI(FilePath) ;
+		   IFile file ;
+		   IWorkbenchPage page ;
+		   HashMap map = new HashMap();
+		   map.put(IMarker.LINE_NUMBER, new Integer(5));
+		   map.put(IWorkbenchPage.EDITOR_ID_ATTR, 
+		      "org.eclipse.ui.DefaultTextEditor");
+		   IMarker marker = file.createMarker(IMarker.TEXT);
+		   marker.setAttributes(map);
+		   //page.openEditor(marker); //2.1 API
+		   IDE.openEditor(marker); //3.0 API
+		   marker.delete(); */
+		   
+	}
 	public TableViewer getViewer() {
 		return viewer;
 	}
