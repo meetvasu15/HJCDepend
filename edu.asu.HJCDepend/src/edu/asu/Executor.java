@@ -2,12 +2,14 @@ package edu.asu;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.StringTokenizer;
 
-import org.apache.log4j.Logger;
 import org.jsoup.nodes.Attribute;
 import org.jsoup.nodes.Attributes;
 import org.jsoup.nodes.Document;
@@ -15,12 +17,10 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import edu.asu.css.CssParser;
-import edu.asu.css.VisitUrl;
 import edu.asu.hjcdepend.ResultStoreBean;
 import edu.asu.html.HtmlUtil;
 import edu.asu.html.parser.HtmlParser;
 import edu.asu.javascript.parser.JavascriptParser;
-import edu.asu.uploadData.PushToServer;
 public class Executor {
 
 	// static Logger log = Logger.getLogger("edu.asu.Executor"); 
@@ -61,9 +61,11 @@ public class Executor {
 				//logs error if it doesnot find a mentioned js or css file on disk
 				getExternalLinkDependencies(htmlParser.getDocumentObject());  
 				
-				String jsString = fetchFileFromDisk(dependencyStore.getHtmlAllJsExtLinks(), Constants.HTML_TO_JAVASCRIPT);//returns the content of all the js files
-				
-				String cssString = fetchFileFromDisk(dependencyStore.getHtmlAllCssExtLinks(), Constants.HTML_TO_CSS);//returns the content of all the css files
+				String jsString = fetchFileFromDisk(dependencyStore.getHtmlAllJsExtLinks(), Constants.HTML_TO_JAVASCRIPT, true);//returns the content of all the js files
+				if(!Util.isBlankList(dependencyStore.getHtmlAllExtDomainJsLinks())){
+					jsString += fetchJavascriptFromUrl(dependencyStore.getHtmlAllExtDomainJsLinks());
+				}
+				String cssString = fetchFileFromDisk(dependencyStore.getHtmlAllCssExtLinks(), Constants.HTML_TO_CSS, false);//returns the content of all the css files
 
 				CssParser.readCSS30(cssString,dependencyStore);
 				buildDOMDependencies(allElts); // gets all css dependencies and stores in dependencyStore, 
@@ -179,15 +181,20 @@ public class Executor {
 				//System.out.println(calculateAbsDiskPath(attrs.get("src")));
 				
 				// This if block checks whether the external link provided points to a file or not
-				if(calculateAbsDiskPath(attrs.get("src")) != null){
-					dependencyStore.getHtmlAllJsExtLinks().add(calculateAbsDiskPath(attrs.get("src")));
-				}else{
-					ResultStoreBean rs = new ResultStoreBean();
-					rs.setFileName(this.htmlFilepath);
-					rs.setSeverity(Constants.ERROR);
-					rs.setDescription(Constants.JS_FILE_NOT_FOUND);
-					rs.setType(Constants.HTML_TO_JAVASCRIPT); 
-					foundIssuesList.add(rs);
+				String srcAttr = attrs.get("src").trim();
+				if(!srcAttr.startsWith("http") && !srcAttr.startsWith("//")){
+					if(calculateAbsDiskPath(srcAttr) != null ){
+						dependencyStore.getHtmlAllJsExtLinks().add(calculateAbsDiskPath(srcAttr));
+					}else{
+						ResultStoreBean rs = new ResultStoreBean();
+						rs.setFileName(this.htmlFilepath);
+						rs.setSeverity(Constants.ERROR);
+						rs.setDescription(Constants.JS_FILE_NOT_FOUND);
+						rs.setType(Constants.HTML_TO_JAVASCRIPT); 
+						foundIssuesList.add(rs);
+					}
+				}else if(srcAttr.startsWith("http")){
+					dependencyStore.getHtmlAllExtDomainJsLinks().add(srcAttr);
 				}
 			}
 			
@@ -202,20 +209,22 @@ public class Executor {
 			CSSAttrs = oneElt.attributes();
 			if((CSSAttrs.hasKey("rel") && CSSAttrs.get("rel").equalsIgnoreCase("stylesheet"))
 					|| (CSSAttrs.hasKey("type") && CSSAttrs.get("type").equalsIgnoreCase("text/css"))){
-				retMap.put("css", CSSAttrs.get("href"));
-				if(calculateAbsDiskPath( CSSAttrs.get("href")) != null){
-					dependencyStore.getHtmlAllCssExtLinks().add(calculateAbsDiskPath(CSSAttrs.get("href")));
-				}else{
-					ResultStoreBean rs = new ResultStoreBean();
-					rs.setFileName(this.htmlFilepath);
-					rs.setSeverity(Constants.ERROR);
-					rs.setDescription(Constants.CSS_FILE_NOT_FOUND);
-					rs.setType(Constants.HTML_TO_CSS); 
-					foundIssuesList.add(rs);
-				}
+				if(!CSSAttrs.get("href").startsWith("http") && !CSSAttrs.get("href").startsWith("//")){
+					retMap.put("css", CSSAttrs.get("href"));
+					if(calculateAbsDiskPath( CSSAttrs.get("href")) != null){
+						dependencyStore.getHtmlAllCssExtLinks().add(calculateAbsDiskPath(CSSAttrs.get("href")));
+					}else{
+						ResultStoreBean rs = new ResultStoreBean();
+						rs.setFileName(this.htmlFilepath);
+						rs.setSeverity(Constants.ERROR);
+						rs.setDescription(Constants.CSS_FILE_NOT_FOUND);
+						rs.setType(Constants.HTML_TO_CSS); 
+						foundIssuesList.add(rs);
+					}
 				
 				//dependencyStore.getHtmlAllCssExtLinks().add(CSSAttrs.get("href"));
 				//log.info(CSSAttrs.get("href"));
+				}
 			}
 			
 		} 
@@ -231,8 +240,9 @@ public class Executor {
 	/*
 	 * This method fetches javascript files from URL and returns them as a string  
 	 */
-/*	public String fetchJavascriptFromUrl(ArrayList<String> UrlList){
-		StringBuilder allJavascriptContent= new StringBuilder();
+ 	public String fetchJavascriptFromUrl(ArrayList<String> UrlList){
+		StringBuilder allJavascriptContent= new StringBuilder("");
+		Integer lineCount = fileNameLineTrack.getLastLineNumberJsEndLineNumberMap();
 		for(String oneURL: UrlList){
 			   try {
 				URL oneJsFile = new URL(oneURL);
@@ -240,33 +250,36 @@ public class Executor {
 					        String inputLine;
 					        while ((inputLine = in.readLine()) != null){
 					        	allJavascriptContent.append(inputLine+" \n");
+					        	lineCount+=1;
 					        }
 					        in.close();
-			} catch (MalformedURLException e) {
-				log.error("ERROR in fetching Javascript from the HTML Page, probably because of a malformed URL");
-				e.printStackTrace();
-			} catch (IOException e) {
-				log.error("ERROR in fetching Javascript from the HTML Page");
+					        fileNameLineTrack.getJsEndLineNumberMap().put(oneURL, lineCount);
+			} catch (Exception e) {
+				
+				foundIssuesList.add(new ResultStoreBean(Constants.ERROR, Constants.HTML_TO_JAVASCRIPT, "Could not read from URL '"+oneURL+"'.", this.htmlFilepath,null));
+		
 				e.printStackTrace();
 			}
 		}
 		return allJavascriptContent.toString();
 	}
-	 */
+	  
 	/*
 	 * This method takes in a list of all js ext links found on the HTML file and return one string of the js files content
 	 */
-	public String fetchFileFromDisk(ArrayList<String> diskPathList, String dependencyType){
-		StringBuilder allJavascriptContent= new StringBuilder(); 
+	public String fetchFileFromDisk(ArrayList<String> diskPathList, String dependencyType, boolean isJavaScript){
+		StringBuilder allContent= new StringBuilder(); 
 		Integer lineCount = 0;
 		for(String onePath:diskPathList){
 			try{
 				String[] readContentLineNumberArr =  readFileFromDisk(onePath, lineCount);
 				String readContnt = readContentLineNumberArr[0];
 				lineCount = Integer.parseInt(readContentLineNumberArr[1]);
-				fileNameLineTrack.getJsEndLineNumberMap().put(onePath, lineCount);
+				if(isJavaScript){
+					fileNameLineTrack.getJsEndLineNumberMap().put(onePath, lineCount);
+				}
 				if(!Util.isBlankString(readContnt)){
-					allJavascriptContent.append(readContnt);
+					allContent.append(readContnt);
 					
 				}else{
 					foundIssuesList.add(new ResultStoreBean(Constants.WARNING, dependencyType, Constants.EMPTY_FILE
@@ -280,7 +293,7 @@ public class Executor {
 			}
 		}
 		
-		return allJavascriptContent.toString();
+		return allContent.toString();
 	}
 	/*
 	 * This method reads a file from absolute system path fed to it
@@ -299,7 +312,7 @@ public class Executor {
 			}
 		} catch (IOException io) {
 			io.printStackTrace();
-			System.out.println("error in fetching web content from the URL");
+			System.out.println("error in fetching web content from the disk");
 
 			throw new IOException(io);
 		} finally {
@@ -333,7 +346,7 @@ public class Executor {
 			}else if(relativePathInHtml.startsWith("./")){
 				return  homeOfHtml+relativePathInHtml.substring(2);
 			}else{
-				System.out.println(homeOfHtml+relativePathInHtml);
+				//System.out.println(homeOfHtml+relativePathInHtml);
 				return homeOfHtml+relativePathInHtml;
 			}
 		}

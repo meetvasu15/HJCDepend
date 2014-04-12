@@ -3,6 +3,8 @@ package edu.asu.hjcdepend;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 
+import edu.asu.Util;
+
 public class ResultStoreBean {
 	private String severity;
 	private String type;
@@ -17,8 +19,13 @@ public class ResultStoreBean {
 	public ResultStoreBean(String severity, String type, String description,
 			String fileName, String lineNo) {
 		this.description = description;
-		this.fileName = fileName;
-		this.lineNo = lineNo;
+		this.fileName = Util.getWorkspaceRelativePath(fileName);
+		if(!Util.isBlankString(lineNo) && lineNo.trim().equals("0")){
+			this.lineNo = "Unknown Line";
+		}
+		else{
+			this.lineNo = lineNo;
+		}
 		this.severity = severity;
 		this.type = type;
 

@@ -75,21 +75,21 @@ public class JavascriptParser {
 		
 		astRoot.visit(nodeVisitor);
 		//System.out.println("Js ---> DOM \n\nListing DOM IDs read by Javascript :-");
-		for(String elt: jsDocObj.getIdFetchedEltList()){
+	/*	for(String elt: jsDocObj.getIdFetchedEltList()){
 			
 			System.out.println(elt);
 		} 
 
 		//System.out.println("\nListing DOM IDs written to by Javascript :-");
 		for(String eltDomId: jsDocObj.getDomEltWrittenToMap().keySet()){
-			System.out.print("The DOM id "+eltDomId+" was written on line numbers ");
+			//System.out.print("The DOM id "+eltDomId+" was written on line numbers ");
 			for(Integer lineNum: jsDocObj.getDomEltWrittenToMap().get(eltDomId)){
-				System.out.print(lineNum+", ");
+				//System.out.print(lineNum+", ");
 			}
-			System.out.println("");
+			//System.out.println("");
 		}
 		//System.out.println("**** +++ ****");
-
+*/
 	}
 	
 	   /* This method checks whether it is a element object we already know of and is being tried to modified using a assignment

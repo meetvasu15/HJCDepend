@@ -1,6 +1,5 @@
 package edu.asu.hjcdepend.views;
 
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -9,6 +8,8 @@ import org.apache.log4j.Logger;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.ResourcesPlugin;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.Path;
 import org.eclipse.jface.viewers.ArrayContentProvider;
 import org.eclipse.jface.viewers.ColumnLabelProvider;
 import org.eclipse.jface.viewers.TableViewer;
@@ -28,6 +29,8 @@ import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.IWorkbenchPart;
 import org.eclipse.ui.PlatformUI;
+import org.eclipse.ui.ide.IDE;
+import org.eclipse.ui.internal.views.markers.MarkerSupportInternalUtilities;
 import org.eclipse.ui.part.ViewPart;
 
 import edu.asu.Constants;
@@ -35,7 +38,6 @@ import edu.asu.Executor;
 import edu.asu.Util;
 import edu.asu.hjcdepend.ResultStoreBean;
 import edu.asu.hjcdepend.CustomException.IllegalFileException;
-
 
 /**
  * 
@@ -48,9 +50,10 @@ public class HJCDependView extends ViewPart {
 	 * The ID of the view as specified by the extension.
 	 */
 	public static final String ID = "edu.asu.hjcdepend.views.HJCDependView";
-	 static Logger log = Logger.getLogger("edu.asu.hjcdepend.views.HJCDependView"); 
+	static Logger log = Logger
+			.getLogger("edu.asu.hjcdepend.views.HJCDependView");
 	private TableViewer viewer;
-	private static List<ResultStoreBean> allIssuesFoundList ;
+	private static List<ResultStoreBean> allIssuesFoundList;
 
 	/**
 	 * The constructor.
@@ -59,13 +62,13 @@ public class HJCDependView extends ViewPart {
 	}
 
 	/**
-	 * This is a callback that will allow us
-	 * to create the viewer and initialize it.
+	 * This is a callback that will allow us to create the viewer and initialize
+	 * it.
 	 */
 	public void createPartControl(Composite parent) {
-		GridLayout outerLayout = new GridLayout(2,false);
+		GridLayout outerLayout = new GridLayout(2, false);
 		parent.setLayout(outerLayout);
-		//Run button
+		// Run button
 		Button button = new Button(parent, SWT.PUSH);
 		button.setText("Run HJC Depend");
 		button.addSelectionListener(new SelectionAdapter() {
@@ -74,65 +77,69 @@ public class HJCDependView extends ViewPart {
 				// Shell shell = parent.getShell();
 				initializeAnalysis(); // this method is the entry point of the
 				generateLogs();
-				updateViewerContent();// dependency analysis core 
+				updateViewerContent();// dependency analysis core
 			}
 
-			
 		});
 		button.setLayoutData(new GridData());
-		//Clear button
+		// Clear button
 		Button buttonClr = new Button(parent, SWT.PUSH);
 		buttonClr.setText("Clear");
 		buttonClr.addSelectionListener(new SelectionAdapter() {
 			@Override
-			public void widgetSelected(SelectionEvent e) { 
-				//clearReportedBugs(); // this method is the entry point of the
+			public void widgetSelected(SelectionEvent e) {
+				// clearReportedBugs(); // this method is the entry point of the
 				viewer.getTable().removeAll();
 			}
 
-			
-
-			
 		});
-		 buttonClr.setLayoutData(new GridData());
+		buttonClr.setLayoutData(new GridData());
 		createViewer(parent);
 	}
+
 	private void generateLogs() {
-		for(ResultStoreBean oneIssue: allIssuesFoundList){
-			log.info(oneIssue.getType()+" reported of severity '"+oneIssue.getSeverity()+"'. Description: "+ oneIssue.getDescription());
+		for (ResultStoreBean oneIssue : allIssuesFoundList) {
+			log.info(oneIssue.getType() + " reported of severity '"
+					+ oneIssue.getSeverity() + "'. Description: "
+					+ oneIssue.getDescription());
 		}
 		log.info("+++++++++++++++++++++++++++++++++++++++++++Analysis End++++++++++++++++++++++++++++++");
-		
+
 	}
-	
-/*	private void clearReportedBugs() {
-		// TODO Auto-generated method stub
-		allIssuesFoundList = new ArrayList<ResultStoreBean>();
-		
-		
-	}*/
-	
+
+	/*
+	 * private void clearReportedBugs() { // TODO Auto-generated method stub
+	 * allIssuesFoundList = new ArrayList<ResultStoreBean>();
+	 * 
+	 * 
+	 * }
+	 */
+
 	private void initializeAnalysis() {
 		try {
 			allIssuesFoundList = new ArrayList<ResultStoreBean>();
-			//allIssuesFoundList.clear();
+			// allIssuesFoundList.clear();
 			String[] prjctNhtmlPath = getCurrentFilePath();
 			Executor exe = new Executor();
 			allIssuesFoundList = exe.runDependencyAnalyser(prjctNhtmlPath);
 		} catch (IllegalFileException e) {
 			e.printStackTrace();
-			allIssuesFoundList.add(new ResultStoreBean(Constants.ERROR, Constants.HJC_ERROR, Constants.CURRENT_FILE_NOT_HTML
-					,null,null));
-		} 
+			allIssuesFoundList.add(new ResultStoreBean(Constants.ERROR,
+					Constants.HJC_ERROR, Constants.CURRENT_FILE_NOT_HTML, null,
+					null));
+		}catch (Exception e) {
+			e.printStackTrace();
+			 
+		}
 
 	}
-	
+
 	/*
 	 * This method get the path of the current open file and checks whether it
 	 * is an HTML file or not returns - path of the HTML file
-	 * @return an array of 2 strings 
-	 * first is disk path of the project
-	 * second is the disk path of the HTML File
+	 * 
+	 * @return an array of 2 strings first is disk path of the project second is
+	 * the disk path of the HTML File
 	 */
 	private String[] getCurrentFilePath() throws IllegalFileException {
 		// code from
@@ -142,10 +149,10 @@ public class HJCDependView extends ViewPart {
 		IFile currFile = (IFile) workbenchPart.getSite().getPage()
 				.getActiveEditor().getEditorInput().getAdapter(IFile.class);
 		String[] path = new String[2];
-		path[0] =currFile.getProject().getLocationURI().getPath();
-		path[1] =currFile.getRawLocation().toString();
-		//System.out.println("currFile.getProject().getFullPath().toString() "+currFile.getProject().getFullPath().toString());
-		//System.out.println("currFile.getRawLocation().toString() " + path);
+		path[0] = currFile.getProject().getLocationURI().getPath();
+		path[1] = currFile.getRawLocation().toString();
+		// System.out.println("currFile.getProject().getFullPath().toString() "+currFile.getProject().getFullPath().toString());
+		// System.out.println("currFile.getRawLocation().toString() " + path);
 		String fileExtension = currFile.getFileExtension();
 		if (!fileExtension.equalsIgnoreCase("html")) {
 			throw new IllegalFileException(
@@ -159,10 +166,11 @@ public class HJCDependView extends ViewPart {
 	// copied from
 	// http://www.vogella.com/tutorials/EclipseJFaceTable/article.html#jfacetable_viewer
 	// is it legal?
-	private void updateViewerContent(){
+	private void updateViewerContent() {
 		viewer.getTable().removeAll();
 		viewer.setInput(allIssuesFoundList);
 	}
+
 	private void createViewer(Composite parent) {
 		viewer = new TableViewer(parent, SWT.MULTI | SWT.H_SCROLL
 				| SWT.V_SCROLL | SWT.FULL_SELECTION | SWT.BORDER);
@@ -176,7 +184,7 @@ public class HJCDependView extends ViewPart {
 		// get the content for the viewer, setInput will call getElements in the
 		// contentProvider
 
-		  viewer.setInput(allIssuesFoundList);
+		viewer.setInput(allIssuesFoundList);
 
 		// make the selection available to other views
 		getSite().setSelectionProvider(viewer);
@@ -191,11 +199,12 @@ public class HJCDependView extends ViewPart {
 		gridData.horizontalAlignment = GridData.FILL;
 		viewer.getControl().setLayoutData(gridData);
 	}
-	private void attachDoubleClickListener(final Table table){
-		table.addListener(SWT.MouseDoubleClick, new Listener() {
+
+	private void attachDoubleClickListener(final Table table) {
+		table.addListener(SWT.MouseDown, new Listener() {
 
 			@Override
-			public void handleEvent(Event event) { 
+			public void handleEvent(Event event) {
 				TableItem[] selection = table.getSelection();
 
 				if (selection.length != 1) {
@@ -205,60 +214,71 @@ public class HJCDependView extends ViewPart {
 				TableItem item = table.getSelection()[0];
 
 				for (int i = 0; i < table.getColumnCount(); i++) {
-					if(item != null){
+					if (item != null) {
 						Object rowClickedData = item.getData();
-						if(rowClickedData != null && rowClickedData instanceof ResultStoreBean){
+						if (rowClickedData != null
+								&& rowClickedData instanceof ResultStoreBean) {
 							ResultStoreBean clickedResult = (ResultStoreBean) rowClickedData;
-							if(clickedResult != null && clickedResult.getFileName() != null && !Util.isBlankString(clickedResult.getFileName()) &&
-									clickedResult.getLineNo() != null && Util.isInteger(clickedResult.getLineNo())){
-								System.out.println("Filename" +clickedResult.getFileName()+" line No"+clickedResult.getLineNo() );
+							if (clickedResult != null
+									&& clickedResult.getFileName() != null
+									&& !Util.isBlankString(clickedResult
+											.getFileName())
+									&& clickedResult.getLineNo() != null
+									&& Util.isInteger(clickedResult.getLineNo())) {
+								goToLine(clickedResult.getFileName(), Integer
+										.parseInt(clickedResult.getLineNo()));
+								//System.out.println("Filename" + clickedResult.getFileName() + " line No" + clickedResult.getLineNo());
 							}
 						}
 					}
-					System.out.println(item);
+					//System.out.println(item);
 				}
 			}
 
-			
-
 		});
 	}
-	public void goToLine(String FilePath, int lineNumber){
-	/*	File fileToOpen = new File("externalfile.xml");
-		 
-		if (fileToOpen.exists() && fileToOpen.isFile()) {
-		    IFileStore fileStore = EFS.getLocalFileSystem().getStore(fileToOpen.toURI());
-		    IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
-		 
-		    try {
-		        IDE.openEditorOnFileStore( page, fileStore );
-		    } catch ( PartInitException e ) {
-		        //Put your exception handler here if you wish to
-		    }
-		} else {
-		    //Do something if the file does not exist
+
+	/*
+	 * This method takes the ciursor to the specified line number
+	 * http://www.eclipsezone.com/eclipse/forums/m92221730.html
+	 * http://wiki.eclipse
+	 * .org/FAQ_How_do_I_open_an_editor_on_a_file_in_the_workspace%3F
+	 * https://www
+	 * .google.com/search?q=eclipse+open+file+in+editor+programmatically
+	 * &oq=open+
+	 * file+in+editor+eclipse+program&aqs=chrome.1.69i57j0.10561j0j1&sourceid
+	 * =chrome&ie=UTF-8 http://wiki.eclipse.org/
+	 * FAQ_How_do_I_open_an_editor_on_a_file_in_the_workspace%3F
+	 * http://wiki.eclipse.org/FAQ_How_do_I_open_an_editor_programmatically%3F
+	 */
+	public void goToLine(String filePath, int lineNumber) {
+		//String workspaceRelativeFilePath = Util.getWorkspaceRelativePath(filePath);
+		if(filePath != null && !Util.isBlankString(filePath)){
+			Path path = new Path(filePath);
+			IFile file = ResourcesPlugin.getWorkspace().getRoot().getFile(path);
+			IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+			HashMap map = new HashMap();
+			map.put(IMarker.LINE_NUMBER, new Integer(lineNumber));
+			IMarker marker;
+			try {
+				marker = file.createMarker(IMarker.TEXT);
+	
+				marker.setAttributes(map);
+				IDE.openEditor(page, marker); // 3.0 API
+				marker.setAttribute(IMarker.MESSAGE, "A sample marker message");
+			      marker.setAttribute(IMarker.PRIORITY, IMarker.PRIORITY_HIGH); 
+			 
+			      //Marker .createMarker(root, attribs, IMarker.PROBLEM);
+				marker.delete();
+			} catch (CoreException e) {
+				e.printStackTrace();
+			}
 		}
-		*/
-		
-		///http://www.eclipsezone.com/eclipse/forums/m92221730.html
-		//http://wiki.eclipse.org/FAQ_How_do_I_open_an_editor_on_a_file_in_the_workspace%3F
-		//https://www.google.com/search?q=eclipse+open+file+in+editor+programmatically&oq=open+file+in+editor+eclipse+program&aqs=chrome.1.69i57j0.10561j0j1&sourceid=chrome&ie=UTF-8
-		//http://wiki.eclipse.org/FAQ_How_do_I_open_an_editor_on_a_file_in_the_workspace%3F
-		//http://wiki.eclipse.org/FAQ_How_do_I_open_an_editor_programmatically%3F
-		/*ResourcesPlugin.getWorkspace().getRoot().findFilesForLocationURI(FilePath) ;
-		   IFile file ;
-		   IWorkbenchPage page ;
-		   HashMap map = new HashMap();
-		   map.put(IMarker.LINE_NUMBER, new Integer(5));
-		   map.put(IWorkbenchPage.EDITOR_ID_ATTR, 
-		      "org.eclipse.ui.DefaultTextEditor");
-		   IMarker marker = file.createMarker(IMarker.TEXT);
-		   marker.setAttributes(map);
-		   //page.openEditor(marker); //2.1 API
-		   IDE.openEditor(marker); //3.0 API
-		   marker.delete(); */
-		   
+
 	}
+	
+	
+
 	public TableViewer getViewer() {
 		return viewer;
 	}
@@ -335,8 +355,6 @@ public class HJCDependView extends ViewPart {
 		return viewerColumn;
 	}
 
-
-	
 	/**
 	 * Passing the focus request to the viewer's control.
 	 */

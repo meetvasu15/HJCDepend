@@ -23,8 +23,11 @@ public class DependencyStore {
 	private ArrayList<String> htmlAllCssDependencies;
 	
 	// all the external javascript links reffered by HTML 
-	private ArrayList<String> htmlAllJsExtLinks;
-	
+		private ArrayList<String> htmlAllJsExtLinks;
+		
+	// all the external domainjavascript links reffered by HTML 
+	private ArrayList<String> htmlAllExtDomainJsLinks;
+
 	//all the external css links reffered by HTML
 	private ArrayList<String> htmlAllCssExtLinks;
 	
@@ -66,6 +69,7 @@ public class DependencyStore {
 		jsAllHtmlIdWritten = new ArrayList<String>();
 		cssAllCssSelectors= new ArrayList<String>();
 		jsAllCssRef = new ArrayList<String>();
+		htmlAllExtDomainJsLinks = new ArrayList<String>();
 		
 	}
 	
@@ -164,6 +168,14 @@ public class DependencyStore {
 
 	public void setJsAllCssRef(ArrayList<String> jsAllCssRef) {
 		this.jsAllCssRef = jsAllCssRef;
+	}
+
+	public ArrayList<String> getHtmlAllExtDomainJsLinks() {
+		return htmlAllExtDomainJsLinks;
+	}
+
+	public void setHtmlAllExtDomainJsLinks(ArrayList<String> htmlAllExtDomainJsLinks) {
+		this.htmlAllExtDomainJsLinks = htmlAllExtDomainJsLinks;
 	}
 	
 }

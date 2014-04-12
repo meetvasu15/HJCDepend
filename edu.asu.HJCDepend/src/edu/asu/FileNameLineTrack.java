@@ -1,6 +1,7 @@
 package edu.asu;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -16,6 +17,16 @@ public class FileNameLineTrack {
 		return JsEndLineNumberMap;
 	}
 
+	public Integer getLastLineNumberJsEndLineNumberMap() {
+		Integer lastLineNumber = 0;
+		Iterator<Integer> it = JsEndLineNumberMap.values().iterator();
+		while(it.hasNext()){
+			lastLineNumber = it.next();
+		}
+		return lastLineNumber;
+	}
+
+	
 	public void setJsEndLineNumber(String fileName, Integer lineInteger) {
 		if(lineInteger != null && !Util.isBlankString(fileName)){
 			JsEndLineNumberMap.put(fileName, lineInteger) ;
@@ -27,7 +38,7 @@ public class FileNameLineTrack {
 		int prevVal = 0;
 		for (Map.Entry<String, Integer> entry : JsEndLineNumberMap.entrySet())
 		{
-			if(entry.getValue() > lineNumber){
+			if(entry.getValue() >= lineNumber){
 				return lineNumber - prevVal;
 			}
 			prevVal = entry.getValue();
@@ -42,12 +53,12 @@ public class FileNameLineTrack {
 		String prevName = "";
 		for (Map.Entry<String, Integer> entry : JsEndLineNumberMap.entrySet())
 		{
-			if(entry.getValue() > lineNumber){
-				if(!Util.isBlankString(prevName)){
+			if(entry.getValue() >= lineNumber){
+				/*if(!Util.isBlankString(prevName)){
 					return prevName;
-				}else{
+				}else{*/
 					return entry.getKey();
-				} 
+				//} 
 			}
 			prevName = entry.getKey();
 		   // System.out.println(entry.getKey() + "/" + entry.getValue());

@@ -24,7 +24,7 @@ public class HtmlParser {
 				// file.
 				StringBuilder lineRead = new StringBuilder();
 				String currentLine;
-				System.out.println(path);
+			//	System.out.println(path);
 				br = new BufferedReader(new FileReader(path));
 
 				while ((currentLine = br.readLine()) != null) {
