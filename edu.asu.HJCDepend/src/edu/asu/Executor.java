@@ -15,6 +15,8 @@ import org.jsoup.nodes.Attributes;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.mozilla.javascript.EvaluatorException;
+import org.mozilla.javascript.Parser;
 
 import edu.asu.css.CssParser;
 import edu.asu.hjcdepend.ResultStoreBean;
@@ -60,10 +62,15 @@ public class Executor {
 				//stores the absolute path in the dependency store
 				//logs error if it doesnot find a mentioned js or css file on disk
 				getExternalLinkDependencies(htmlParser.getDocumentObject());  
+				//before begining parse all JavaScript for parsing errors and
 				
 				String jsString = fetchFileFromDisk(dependencyStore.getHtmlAllJsExtLinks(), Constants.HTML_TO_JAVASCRIPT, true);//returns the content of all the js files
 				if(!Util.isBlankList(dependencyStore.getHtmlAllExtDomainJsLinks())){
 					jsString += fetchJavascriptFromUrl(dependencyStore.getHtmlAllExtDomainJsLinks());
+				}
+				if(!Util.isBlankString(htmlParser.getEmbeddedJavaScript())){
+					jsString += htmlParser.getEmbeddedJavaScript();
+					 fileNameLineTrack.getJsEndLineNumberMap().put(this.htmlFilepath, 0);
 				}
 				String cssString = fetchFileFromDisk(dependencyStore.getHtmlAllCssExtLinks(), Constants.HTML_TO_CSS, false);//returns the content of all the css files
 
@@ -74,7 +81,7 @@ public class Executor {
 				
 				parseJavascript(jsString);// entry point for js parsing
 	
-				VerifyDependency vd = new VerifyDependency(dependencyStore, this.foundIssuesList, this.htmlFilepath);
+				VerifyDependency vd = new VerifyDependency(dependencyStore, this.foundIssuesList, this.htmlFilepath, htmlParser);
 				
 				vd.initializeVerification();
 			}catch(Exception e){
@@ -153,6 +160,7 @@ public class Executor {
 					retMap.put(oneAttr.getKey(), oneAttr.getValue());
 					//log.info("Attr Type: "+oneAttr.getKey()+", dependent CSS class: "+oneAttr.getValue());
 					dependencyStore.getHtmlAllCssDependencies().add(oneAttr.getValue());
+					//System.out.println(oneAttr.html());
 				}
 				if(allDomPossibleAccessorList.contains(oneAttr.getKey().trim())){
 					dependencyStore.getHtmlallHtmlAccessors().add(oneAttr.getValue());
@@ -185,14 +193,14 @@ public class Executor {
 				if(!srcAttr.startsWith("http") && !srcAttr.startsWith("//")){
 					if(calculateAbsDiskPath(srcAttr) != null ){
 						dependencyStore.getHtmlAllJsExtLinks().add(calculateAbsDiskPath(srcAttr));
-					}else{
+					}/*else{
 						ResultStoreBean rs = new ResultStoreBean();
 						rs.setFileName(this.htmlFilepath);
 						rs.setSeverity(Constants.ERROR);
 						rs.setDescription(Constants.JS_FILE_NOT_FOUND);
 						rs.setType(Constants.HTML_TO_JAVASCRIPT); 
 						foundIssuesList.add(rs);
-					}
+					}*/
 				}else if(srcAttr.startsWith("http")){
 					dependencyStore.getHtmlAllExtDomainJsLinks().add(srcAttr);
 				}
@@ -272,7 +280,7 @@ public class Executor {
 		Integer lineCount = 0;
 		for(String onePath:diskPathList){
 			try{
-				String[] readContentLineNumberArr =  readFileFromDisk(onePath, lineCount);
+				String[] readContentLineNumberArr =  readFileFromDisk(onePath, lineCount, isJavaScript);
 				String readContnt = readContentLineNumberArr[0];
 				lineCount = Integer.parseInt(readContentLineNumberArr[1]);
 				if(isJavaScript){
@@ -299,7 +307,7 @@ public class Executor {
 	 * This method reads a file from absolute system path fed to it
 	 * @returns a string of the file
 	 */
-	public String[] readFileFromDisk(String absolutePath, Integer lineCount) throws IOException {
+	public String[] readFileFromDisk(String absolutePath, Integer lineCount, boolean isJavaScript) throws IOException {
 		StringBuilder lineRead = new StringBuilder();
 		String currentLine;
 		BufferedReader br = null; 
@@ -322,6 +330,9 @@ public class Executor {
 			} catch (IOException ex) {
 				//ex.printStackTrace();
 			}
+		}
+		if(isJavaScript){
+			isParseableJavaScript(lineRead.toString(), absolutePath);
 		}
 		String [] retArr = new String[2];
 		retArr[0]= lineRead.toString();
@@ -370,4 +381,36 @@ public class Executor {
 			return currentCntxt+filePath;
 		} 
 	}
+	
+	/*
+	 * Check if all JavaScript is parsable
+	 */
+	
+	public boolean isParseableJavaScript(String javaScriptStr, String jsFilePath) {
+		boolean isParseable = false;
+		try {
+			  new Parser().parse(javaScriptStr, "uri", 1);
+			  isParseable = true;
+		} catch (EvaluatorException ee) {
+			foundIssuesList.add(new ResultStoreBean(Constants.ERROR,
+					Constants.HJC_ERROR, "JavaScript file has syntactic error :-> "
+							+ ee.getMessage(),jsFilePath,ee.getLineNumber()+"" ));
+			/*System.out.println(ee.getMessage());
+			ee.getLineNumber();*/
+			//throw new EvaluatorException(ee.getMessage());
+		}
+		return isParseable;
+	}
+	
+	/*public String getLineNumberFromUri(String errorMsg){
+		String retStr = "";
+			if(!Util.isBlankString(errorMsg)){
+				int lineNumberStartIndex = errorMsg.indexOf("uri#")+4;
+				if(lineNumberStartIndex != 0){
+					//retStr = errorMsg.sub
+					
+				}
+			}
+		return retStr;
+	}*/
 }

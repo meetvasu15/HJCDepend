@@ -3,11 +3,8 @@ package edu.asu;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
-
 import edu.asu.hjcdepend.ResultStoreBean;
+import edu.asu.html.parser.HtmlParser;
 
 /*
  * This class compares lists of dependencies found and adds the errors and warning to foundIssuesList
@@ -16,11 +13,13 @@ public class VerifyDependency {
 	private DependencyStore dependencyStore;
 	private List<ResultStoreBean> foundIssuesList;
 	private String htmlFilepath;
+	private HtmlParser htmlParser;
 	
-	public VerifyDependency(DependencyStore dependencyStore, List<ResultStoreBean> foundIssuesList, String htmlFilepath){
+	public VerifyDependency(DependencyStore dependencyStore, List<ResultStoreBean> foundIssuesList, String htmlFilepath, HtmlParser htmlParser){
 		this.dependencyStore = dependencyStore;
 		this.foundIssuesList = foundIssuesList;
 		this.htmlFilepath=htmlFilepath;
+		this.htmlParser = htmlParser;
 	}
 	public  List<ResultStoreBean> initializeVerification(){
 		checkAllHtmlEventListnerFunc();
@@ -38,9 +37,9 @@ public class VerifyDependency {
 		for(String oneHtmlRef: allHTMLRef){
 			if(!allCSSSelectors.contains(oneHtmlRef)){
 				 
-				foundIssuesList.add(new ResultStoreBean(Constants.WARNING, Constants.HTML_TO_CSS, "Could not find HTML class reference " +
-						oneHtmlRef+" selector in any CSS file."
-						, this.htmlFilepath,""));
+				foundIssuesList.add(new ResultStoreBean(Constants.WARNING, Constants.HTML_TO_CSS, "Could not find css class '" +
+						oneHtmlRef+"' in any CSS file"
+						, this.htmlFilepath,htmlParser.getHTMLFileLineNumber(oneHtmlRef)));
 			}
 		}
 	}
@@ -56,16 +55,17 @@ public class VerifyDependency {
 				//check if this function is a browser built in
 				 if(!getBrowserBuiltInFuncs().contains((oneFunction.substring(0, oneFunction.indexOf("("))).trim())){
 					 //Now check if the function is in JS Files or not
-					if(!allFuncInJs.contains((oneFunction.substring(0, oneFunction.indexOf("("))).trim())){
-						foundIssuesList.add(new ResultStoreBean(Constants.ERROR, Constants.HTML_TO_JAVASCRIPT, "Could not find " +
-								(oneFunction.substring(0, oneFunction.indexOf("("))).trim()+" event listner in JavaScript"
-								, this.htmlFilepath,null));
+					 String functionName = (oneFunction.substring(0, oneFunction.indexOf("("))).trim();
+					if(!Util.isBlankString(functionName) && !functionName.equals("function") && !allFuncInJs.contains((oneFunction.substring(0, oneFunction.indexOf("("))).trim())){
+						foundIssuesList.add(new ResultStoreBean(Constants.ERROR, Constants.HTML_TO_JAVASCRIPT, "Call to undefined function '" +
+								(oneFunction.substring(0, oneFunction.indexOf("("))).trim()+"'"
+								, this.htmlFilepath, htmlParser.getHTMLFileLineNumber(oneFunction)));
 					}else if(allFuncInJs.contains((oneFunction.substring(0, oneFunction.indexOf("("))).trim())){
 						//check function variadicity (Number of function params)
 						if(dependencyStore.getHtmlEventListnerFunc().get(oneFunction) != null && dependencyStore.getHtmlEventListnerFunc().get(oneFunction) != dependencyStore.getJsAllFuncInJs().get((oneFunction.substring(0, oneFunction.indexOf("("))).trim())){
-							foundIssuesList.add(new ResultStoreBean(Constants.WARNING, Constants.HTML_TO_JAVASCRIPT, "In your HTML file, the argument count in event listner function '" +
-									oneFunction+"' does not match parameter count in the JavaScript file"
-									, this.htmlFilepath,null));
+							foundIssuesList.add(new ResultStoreBean(Constants.WARNING, Constants.HTML_TO_JAVASCRIPT, "Invalid argument count of function '" +
+									oneFunction+"' in HTML file"
+									, this.htmlFilepath,  htmlParser.getHTMLFileLineNumber(oneFunction)));
 						}
 					}
 				}
@@ -126,6 +126,7 @@ public class VerifyDependency {
 		retList.add("setInterval");
 		retList.add("setTimeout");
 		retList.add("stop");
+		retList.add("console.log");
 
 		return retList;
 	}

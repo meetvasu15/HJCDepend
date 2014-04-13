@@ -201,7 +201,7 @@ public class HJCDependView extends ViewPart {
 	}
 
 	private void attachDoubleClickListener(final Table table) {
-		table.addListener(SWT.MouseDown, new Listener() {
+		table.addListener(SWT.MouseDoubleClick, new Listener() {
 
 			@Override
 			public void handleEvent(Event event) {
@@ -253,28 +253,34 @@ public class HJCDependView extends ViewPart {
 	 */
 	public void goToLine(String filePath, int lineNumber) {
 		//String workspaceRelativeFilePath = Util.getWorkspaceRelativePath(filePath);
-		if(filePath != null && !Util.isBlankString(filePath)){
-			Path path = new Path(filePath);
-			IFile file = ResourcesPlugin.getWorkspace().getRoot().getFile(path);
-			IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
-			HashMap map = new HashMap();
-			map.put(IMarker.LINE_NUMBER, new Integer(lineNumber));
-			IMarker marker;
-			try {
-				marker = file.createMarker(IMarker.TEXT);
-	
-				marker.setAttributes(map);
-				IDE.openEditor(page, marker); // 3.0 API
-				marker.setAttribute(IMarker.MESSAGE, "A sample marker message");
-			      marker.setAttribute(IMarker.PRIORITY, IMarker.PRIORITY_HIGH); 
-			 
-			      //Marker .createMarker(root, attribs, IMarker.PROBLEM);
-				marker.delete();
-			} catch (CoreException e) {
-				e.printStackTrace();
+		try{
+			if(filePath != null && !Util.isBlankString(filePath)){
+				Path path = new Path(filePath);
+				IFile file = ResourcesPlugin.getWorkspace().getRoot().getFile(path);
+				if(file.exists()){
+					IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+					HashMap map = new HashMap();
+					map.put(IMarker.LINE_NUMBER, new Integer(lineNumber));
+					IMarker marker;
+					try {
+						marker = file.createMarker(IMarker.TEXT);
+			
+						marker.setAttributes(map);
+						IDE.openEditor(page, marker); // 3.0 API
+						//marker.setAttribute(IMarker.MESSAGE, "A sample marker message");
+					     // marker.setAttribute(IMarker.PRIORITY, IMarker.PRIORITY_HIGH); 
+					 
+					      //Marker .createMarker(root, attribs, IMarker.PROBLEM);
+					 if(marker.exists())
+						marker.delete();
+					} catch (CoreException e) {
+						e.printStackTrace();
+					}
+				}
 			}
+		}catch(Exception e){
+			//could not go to line
 		}
-
 	}
 	
 	

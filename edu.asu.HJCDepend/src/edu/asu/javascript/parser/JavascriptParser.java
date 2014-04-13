@@ -57,8 +57,9 @@ public class JavascriptParser {
 		try{
 		 astRoot = new Parser().parse(jsString, "uri", 1);
 		}catch(EvaluatorException ee){
-			foundIssuesList.add(new ResultStoreBean(Constants.ERROR, Constants.HJC_ERROR, Constants.ERROR_DURING_PARSING_JS +ee.getMessage()
-					,null,null));
+			//unlikely to happen, we take care of parsing way before
+			/*foundIssuesList.add(new ResultStoreBean(Constants.ERROR, Constants.HJC_ERROR, Constants.ERROR_DURING_PARSING_JS +ee.getMessage()
+					,null,null));*/
 			throw new EvaluatorException(ee.getMessage());
 		}
 		//System.out.println(jsString);
@@ -112,9 +113,8 @@ public class JavascriptParser {
 							assignmentObject)) {
 
 				foundIssuesList.add(new ResultStoreBean(Constants.ERROR, Constants.JAVASCRIPT_TO_HTML,
-						"Javascript tried to write to an  invalid HTML ID "
-								+ jsDocObj.getUnavailableDomReferences().get(
-										assignmentObject), 
+						"Access to an undefined DOM element '"
+								+ assignmentObject+"', check initialization of this variable", 
 										 this.fileNameLineTrack.calculateJsTrueFileName(assignExpr.getLineno())
 											,  this.fileNameLineTrack.calculateJsTrueLineNum(assignExpr.getLineno())+""));// report it!!
 			}
@@ -184,8 +184,8 @@ public class JavascriptParser {
 								
 								//check whether there is a html identifier in dom or else report it as warning.
 								if(Util.isBlankList(dependencyStore.getHtmlallHtmlAccessors()) || !dependencyStore.getHtmlallHtmlAccessors().contains( strArg.getValue())){
-									foundIssuesList.add(new ResultStoreBean(Constants.WARNING, Constants.JAVASCRIPT_TO_HTML, "Javascript tried to access " +
-											"invalid HTML reference "+  strArg.getValue(), this.fileNameLineTrack.calculateJsTrueFileName(node.getLineno())
+									foundIssuesList.add(new ResultStoreBean(Constants.WARNING, Constants.JAVASCRIPT_TO_HTML, "Javascript tried to fetch " +
+											"unavailable HTML reference '"+  strArg.getValue()+"'", this.fileNameLineTrack.calculateJsTrueFileName(node.getLineno())
 											,  this.fileNameLineTrack.calculateJsTrueLineNum(node.getLineno())+""));//report it!!
 									if(getVarInitializer(functionExp.getParent()) != null){
 										
@@ -193,8 +193,9 @@ public class JavascriptParser {
 									}
 									//check if it is trying to write to a non existing property
 									 if(isAccessingProperty(node.getParent())){
-										 foundIssuesList.add(new ResultStoreBean(Constants.ERROR, Constants.JAVASCRIPT_TO_HTML, "Javascript tried to access " +
-													"invalid HTML element "+  strArg.getValue(), this.fileNameLineTrack.calculateJsTrueFileName(node.getLineno())
+										 foundIssuesList.add(new ResultStoreBean(Constants.ERROR, Constants.JAVASCRIPT_TO_HTML, "Access to undefined DOM element " +
+										 		", HTML reference '" +
+													  strArg.getValue()+"' unavailable", this.fileNameLineTrack.calculateJsTrueFileName(node.getLineno())
 													,  this.fileNameLineTrack.calculateJsTrueLineNum(node.getLineno())+""));//report it!!
 									 }
 								}
@@ -235,8 +236,8 @@ public class JavascriptParser {
 				}
 				//check if the identifier belongs to unavaible DOM references
 				if(jsDocObj.getUnavailableDomReferences().containsKey(property.getLeft().getString())){
-					foundIssuesList.add(new ResultStoreBean(Constants.ERROR, Constants.JAVASCRIPT_TO_HTML, "Javascript tried to write " +
-							"invalid HTML reference "+  property.getLeft().getString(), this.fileNameLineTrack.calculateJsTrueFileName(node.getLineno())
+					foundIssuesList.add(new ResultStoreBean(Constants.ERROR, Constants.JAVASCRIPT_TO_HTML, "Access to an undefined DOM element '" +
+							  property.getLeft().getString()+"', check initialization of this variable", this.fileNameLineTrack.calculateJsTrueFileName(node.getLineno())
 							,  this.fileNameLineTrack.calculateJsTrueLineNum(node.getLineno())+""));//report it!!
 				}
 			}
